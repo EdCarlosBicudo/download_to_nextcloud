@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import sys
+from typing import List
 import requests
 import xmltodict
 import argparse
@@ -32,9 +33,14 @@ def list_directories(_):
                                 data=xml_body)
 
     content = xmltodict.parse(response.text)['d:multistatus']['d:response']
+
+    if not isinstance(content, List):
+        content = [content]
+
     filtered = filter(lambda x:
                       x['d:propstat']['d:prop']['d:getcontenttype'] is None,
                       content)
+
     directories = [item['d:href'].replace('/remote.php/dav/files/user', '')
                    for item in filtered]
 
