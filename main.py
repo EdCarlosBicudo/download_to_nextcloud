@@ -17,7 +17,7 @@ xml_body = """<?xml version="1.0"?>
   </d:prop>
 </d:propfind>"""
 
-PATH = ''
+PATH = '/'
 
 
 def list_directories(_):
@@ -41,9 +41,10 @@ def list_directories(_):
                       x['d:propstat']['d:prop']['d:getcontenttype'] is None,
                       content)
 
-    directories = [item['d:href'].replace('/remote.php/dav/files/user', '')
+    directories = [item['d:href'].replace('/remote.php/dav/files/user' + PATH, '')
                    for item in filtered]
 
+    directories.pop(0)
     directories.append(Separator())
     directories.append("Here")
     directories.append("Back")
@@ -87,10 +88,12 @@ def ask_path():
         a_path = prompt(q_path)
         if a_path['path'] == 'Here':
             confirm = 's'
+        elif a_path['path'] == 'Back':
+            path = '/'.join(path.split('/')[:-2])
         else:
-            path = a_path['path']
-            PATH = path
-    return path
+            path = PATH + a_path['path']
+        PATH = path if path else '/'
+    return PATH
 
 
 def parse_arguments():
