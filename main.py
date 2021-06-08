@@ -4,6 +4,9 @@ from typing import List
 import requests
 import xmltodict
 import argparse
+import os
+import progressbar
+import re
 from PyInquirer import prompt, Separator
 
 
@@ -18,6 +21,7 @@ xml_body = """<?xml version="1.0"?>
 </d:propfind>"""
 
 PATH = '/'
+TEMP_DIR = 'tmp'
 
 
 def list_directories(_):
@@ -64,6 +68,21 @@ def ask_url():
         }
     ]
     return prompt(url)['url']
+
+
+def ask_nome_arquivo():
+    """Pergunta o nome do arquivo para o usuario
+
+    Returns:
+        String: Nome do arquivo
+    """
+    nome = [{
+            'type': 'input',
+            'name': 'nome',
+            'message': 'Nome do Arquivo:',
+        }
+    ]
+    return prompt(nome)['nome']
 
 
 def ask_path():
@@ -116,6 +135,48 @@ def parse_arguments():
     return args.user, args.password, args.url
 
 
+def download_file(url, filename):
+    """Cria uma pasta temporaria e baixa o arquivo salvando-o nela
+
+    Args:
+        url (String): URL do arquivo a ser baixado
+        filename (String): Nome do arquivo a ser salvo
+    """
+
+    if not os.path.exists(TEMP_DIR):
+        os.mkdir(TEMP_DIR)
+
+    os.chdir(os.path.join(os.getcwd(),TEMP_DIR))
+
+    response = requests.get(url, stream = True)
+
+    file_lenght = int(response.headers.get('content-length'))
+
+    chunk_size = 4096
+
+    widgets = [ 'Progress: ',
+                progressbar.Percentage(),
+                ' ',
+                progressbar.Bar(marker= '#' , left= '[' , right= ']' ),
+                ' ',
+                progressbar.ETA(),
+                ' ',
+                progressbar.FileTransferSpeed()]
+
+    pbar = progressbar.ProgressBar(widgets=widgets, maxval=file_lenght).start()
+
+    cont = 0
+    with open(filename, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=chunk_size):
+            if chunk:
+                f.write(chunk)
+                f.flush()
+
+                cont += len(chunk)
+                pbar.update(cont)
+
+        pbar.finish()
+
 def main():
     """Este script baixa um arquivo da URL fornecida pelo usuario
     e envia ele para o nextcloud usando sua API no diretorio escolhido
@@ -125,6 +186,11 @@ def main():
     if not url:
         url = ask_url()
 
+    if (re.search(r'[^A-Za-z0-9_\-\\.]',url.split('/')[-1])):
+        filename = ask_nome_arquivo()
+    else:
+        filename = url.split('/')[-1]
+
     global BASE_URL
     global AUTH
 
@@ -132,6 +198,8 @@ def main():
     AUTH = (user, pass_)
 
     path = ask_path()
+
+    download_file(url, filename)
 
 
 if __name__ == '__main__':
