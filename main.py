@@ -1,6 +1,7 @@
 from __future__ import print_function, unicode_literals
 import sys
 from typing import List
+import logging
 import requests
 import xmltodict
 import argparse
@@ -80,8 +81,8 @@ def ask_nome_arquivo():
             'type': 'input',
             'name': 'nome',
             'message': 'Nome do Arquivo:',
-        }
-    ]
+            }
+            ]
     return prompt(nome)['nome']
 
 
@@ -146,24 +147,34 @@ def download_file(url, filename):
     if not os.path.exists(TEMP_DIR):
         os.mkdir(TEMP_DIR)
 
-    os.chdir(os.path.join(os.getcwd(),TEMP_DIR))
+    os.chdir(os.path.join(os.getcwd(), TEMP_DIR))
 
-    response = requests.get(url, stream = True)
+    response = requests.get(url, stream=True)
 
-    file_lenght = int(response.headers.get('content-length'))
+    content_length = response.headers.get('content-length')
+
+    file_lenght = int(content_length) if content_length else None
 
     chunk_size = 4096
 
-    widgets = [ 'Progress: ',
-                progressbar.Percentage(),
-                ' ',
-                progressbar.Bar(marker= '#' , left= '[' , right= ']' ),
-                ' ',
-                progressbar.ETA(),
-                ' ',
-                progressbar.FileTransferSpeed()]
-
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=file_lenght).start()
+    if file_lenght:
+        widgets = ['Progress: ',
+                   progressbar.Percentage(),
+                   ' ',
+                   progressbar.Bar(marker='#', left='[', right=']'),
+                   ' ',
+                   progressbar.ETA(),
+                   ' ',
+                   progressbar.FileTransferSpeed()]
+        pbar = progressbar.ProgressBar(widgets=widgets,
+                                       maxval=file_lenght).start()
+    else:
+        widgets = ['Progress: ',
+                   progressbar.Bar(marker='#', left='[', right=']'),
+                   ' ',
+                   progressbar.FileTransferSpeed()]
+        pbar = progressbar.ProgressBar(widgets=widgets,
+                                       maxval=progressbar.UnknownLength).start()
 
     cont = 0
     with open(filename, 'wb') as f:
@@ -177,16 +188,34 @@ def download_file(url, filename):
 
         pbar.finish()
 
+    return os.path.join(os.getcwd(), filename)
+
+
+def upload_file(file_path, file_name, upload_path):
+    final_path = BASE_URL + upload_path + file_name
+
+    response = requests.put(final_path, auth=AUTH, data=open(file_path, 'rb'))
+
+    print(response.status_code)
+
+    if response.ok:
+        print('Arquivo enviado com sucesso')
+    else:
+        print('Erro ao enviar o arquivo')
+
+
 def main():
     """Este script baixa um arquivo da URL fornecida pelo usuario
     e envia ele para o nextcloud usando sua API no diretorio escolhido
     """
     user, pass_, url = parse_arguments()
 
+    logging.basicConfig(level=logging.DEBUG)
+
     if not url:
         url = ask_url()
 
-    if (re.search(r'[^A-Za-z0-9_\-\\.]',url.split('/')[-1])):
+    if (re.search(r'[^A-Za-z0-9_\-\\.]', url.split('/')[-1])):
         filename = ask_nome_arquivo()
     else:
         filename = url.split('/')[-1]
@@ -199,7 +228,9 @@ def main():
 
     path = ask_path()
 
-    download_file(url, filename)
+    file_path = download_file(url, filename)
+
+    upload_file(file_path, filename, path)
 
 
 if __name__ == '__main__':
