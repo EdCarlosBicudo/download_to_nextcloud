@@ -128,6 +128,7 @@ def main():
     file_path = next.download_file(url, filename)
 
     enviar = True
+    sucesso = None
     while enviar:
         sucesso = next.upload_file(file_path, filename, BASE_URL + path, AUTH)
 
@@ -136,6 +137,10 @@ def main():
         if not sucesso:
             enviar = ask_enviar_novamente()
 
+    if sucesso:
+        print("Arquivo enviado com sucesso")
+    else:
+        print("Arquivo não enviado")
 
 if __name__ == '__main__':
     main()

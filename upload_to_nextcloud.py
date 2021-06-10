@@ -90,6 +90,7 @@ usando sua API no diretorio escolhido.
     path = next.ask_path(BASE_URL, AUTH)
 
     enviar = True
+    sucesso = None
     while enviar:
         sucesso = next.upload_file(arquivo, filename, BASE_URL + path, AUTH)
 
@@ -97,6 +98,11 @@ usando sua API no diretorio escolhido.
             enviar = False
         if not sucesso:
             enviar = ask_enviar_novamente()
+
+    if sucesso:
+        print("Arquivo enviado com sucesso")
+    else:
+        print("Arquivo não enviado")
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ from PyInquirer import prompt, Separator
 import progressbar
 import requests
 import xmltodict
+import urllib.parse
 
 
 LIST_URL = None
@@ -34,12 +35,10 @@ def upload_file(file_path, file_name, upload_path, auth):
                                 data=open(os.path.join(file_path), 'rb'))
 
         response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-    except requests.exceptions.HTTPError as err:
-        raise SystemExit(err)
 
-    return response.ok
+        return response.ok
+    except Exception as e:
+        print(e)
 
 
 def download_file(url, filename, tmp_dir='tmp'):
@@ -95,12 +94,12 @@ def download_file(url, filename, tmp_dir='tmp'):
                     pbar.update(cont)
 
             pbar.finish()
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-    except requests.exceptions.HTTPError as err:
-        raise SystemExit(err)
+    except Exception as e:
+        print(e)
 
-    return os.path.join(os.getcwd(), filename)
+    file_path = os.path.join(os.getcwd(), filename)
+    os.chdir("../")
+    return file_path
 
 
 def list_directories(_):
@@ -116,10 +115,8 @@ def list_directories(_):
                                     auth=LIST_AUTH,
                                     data=xml_body)
         response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-    except requests.exceptions.HTTPError as err:
-        raise SystemExit(err)
+    except Exception as e:
+        print(e)
 
     content = xmltodict.parse(response.text)['d:multistatus']['d:response']
 
@@ -130,8 +127,9 @@ def list_directories(_):
                       x['d:propstat']['d:prop']['d:getcontenttype'] is None,
                       content)
 
-    directories = [item['d:href'].replace('/remote.php/dav/files/user' + PATH, '')
-                   for item in filtered]
+    directories = [urllib.parse.unquote(
+                    item['d:href'].replace('/remote.php/dav/files/user' + PATH, ''))
+                    for item in filtered]
 
     directories.pop(0)
     directories.append(Separator())
