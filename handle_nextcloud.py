@@ -28,11 +28,16 @@ def upload_file(file_path, file_name, upload_path, auth):
     """
     final_path = upload_path + file_name
 
-    response = requests.put(final_path,
-                            auth=auth,
-                            data=open(os.path.join(file_path), 'rb'))
+    try:
+        response = requests.put(final_path,
+                                auth=auth,
+                                data=open(os.path.join(file_path), 'rb'))
 
-    print(response.status_code)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    except requests.exceptions.HTTPError as err:
+        raise SystemExit(err)
 
     return response.ok
 
@@ -50,44 +55,50 @@ def download_file(url, filename, tmp_dir='tmp'):
 
     os.chdir(os.path.join(os.getcwd(), tmp_dir))
 
-    response = requests.get(url, stream=True)
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
 
-    content_length = response.headers.get('content-length')
+        content_length = response.headers.get('content-length')
 
-    file_lenght = int(content_length) if content_length else None
+        file_lenght = int(content_length) if content_length else None
 
-    chunk_size = 4096
+        chunk_size = 4096
 
-    if file_lenght:
-        widgets = ['Progress: ',
-                   progressbar.Percentage(),
-                   ' ',
-                   progressbar.Bar(marker='#', left='[', right=']'),
-                   ' ',
-                   progressbar.ETA(),
-                   ' ',
-                   progressbar.FileTransferSpeed()]
-        pbar = progressbar.ProgressBar(widgets=widgets,
-                                       maxval=file_lenght).start()
-    else:
-        widgets = ['Progress: ',
-                   progressbar.Bar(marker='#', left='[', right=']'),
-                   ' ',
-                   progressbar.FileTransferSpeed()]
-        pbar = progressbar.ProgressBar(widgets=widgets,
-                                       maxval=progressbar.UnknownLength).start()
+        if file_lenght:
+            widgets = ['Progress: ',
+                       progressbar.Percentage(),
+                       ' ',
+                       progressbar.Bar(marker='#', left='[', right=']'),
+                       ' ',
+                       progressbar.ETA(),
+                       ' ',
+                       progressbar.FileTransferSpeed()]
+            pbar = progressbar.ProgressBar(widgets=widgets,
+                                           maxval=file_lenght).start()
+        else:
+            widgets = ['Progress: ',
+                       progressbar.Bar(marker='#', left='[', right=']'),
+                       ' ',
+                       progressbar.FileTransferSpeed()]
+            pbar = progressbar.ProgressBar(widgets=widgets,
+                                           maxval=progressbar.UnknownLength).start()
 
-    cont = 0
-    with open(filename, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            if chunk:
-                f.write(chunk)
-                f.flush()
+        cont = 0
+        with open(filename, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
 
-                cont += len(chunk)
-                pbar.update(cont)
+                    cont += len(chunk)
+                    pbar.update(cont)
 
-        pbar.finish()
+            pbar.finish()
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    except requests.exceptions.HTTPError as err:
+        raise SystemExit(err)
 
     return os.path.join(os.getcwd(), filename)
 
@@ -99,10 +110,16 @@ def list_directories(_):
     Returns:
         List: Lista com as opcoes
     """
-    response = requests.request(method='PROPFIND',
-                                url=LIST_URL+PATH,
-                                auth=LIST_AUTH,
-                                data=xml_body)
+    try:
+        response = requests.request(method='PROPFIND',
+                                    url=LIST_URL+PATH,
+                                    auth=LIST_AUTH,
+                                    data=xml_body)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    except requests.exceptions.HTTPError as err:
+        raise SystemExit(err)
 
     content = xmltodict.parse(response.text)['d:multistatus']['d:response']
 

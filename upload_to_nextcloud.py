@@ -1,9 +1,7 @@
-import logging
 import argparse
 import sys
 import textwrap
 import os
-
 from PyInquirer import prompt
 import handle_nextcloud as next
 
@@ -77,7 +75,6 @@ def main():
     """Este script envia arquivo fornecido pelo usuario para o nextcloud \
 usando sua API no diretorio escolhido.
     """
-    logging.basicConfig(level=logging.DEBUG)
     user, password, server, arquivo = parse_arguments()
 
     arquivo = os.path.abspath(arquivo)

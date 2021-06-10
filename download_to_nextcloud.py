@@ -1,6 +1,5 @@
 from __future__ import print_function, unicode_literals
 import sys
-import logging
 import argparse
 import os
 import re
@@ -109,8 +108,6 @@ def main():
     e envia ele para o nextcloud usando sua API no diretorio escolhido
     """
     user, password, server, url = parse_arguments()
-
-    logging.basicConfig(level=logging.DEBUG)
 
     if not url:
         url = ask_url()
