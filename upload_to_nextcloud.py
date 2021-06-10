@@ -1,31 +1,15 @@
-from __future__ import print_function, unicode_literals
-import sys
 import logging
 import argparse
-import os
-import re
+import sys
 import textwrap
-import handle_nextcloud as next
+import os
+
 from PyInquirer import prompt
+import handle_nextcloud as next
 
 
 BASE_URL = '/remote.php/dav/files/'
 AUTH = None
-
-
-def ask_url():
-    """Pergunta a URL para o usuario
-
-    Returns:
-        String: URL
-    """
-    url = [{
-            'type': 'input',
-            'name': 'url',
-            'message': 'URL:',
-        }
-    ]
-    return prompt(url)['url']
 
 
 def ask_enviar_novamente():
@@ -47,21 +31,6 @@ def ask_enviar_novamente():
     return False
 
 
-def ask_nome_arquivo():
-    """Pergunta o nome do arquivo para o usuario
-
-    Returns:
-        String: Nome do arquivo
-    """
-    nome = [{
-            'type': 'input',
-            'name': 'nome',
-            'message': 'Nome do Arquivo:',
-            }
-            ]
-    return prompt(nome)['nome']
-
-
 def parse_arguments():
     """Define os argumentos recebidos pelo usuario
 
@@ -81,14 +50,14 @@ precisar supri-las na linha de comando:
 precedência em relação as variáveis de ambiente)
         '''
     parser = argparse.ArgumentParser(
-             prog='download_to_nextcloud.py',
+             prog='upload_to_nextcloud.py',
              formatter_class=argparse.RawDescriptionHelpFormatter,
              epilog=textwrap.dedent(help))
 
     parser.add_argument('-u', '--user', help='usuário do Nextcloud')
     parser.add_argument('-p', '--password', help='senha do Nextcloud')
     parser.add_argument('-s', '--server', help='endereço do servidor Nextcloud')
-    parser.add_argument('--url', help='URL of the download')
+    parser.add_argument('-a', '--arquivo', help='arquivo a ser enviado')
 
     args = parser.parse_args()
 
@@ -96,29 +65,22 @@ precedência em relação as variáveis de ambiente)
     password = args.password if args.password else os.environ.get('NEXTCLOUD_PASS')
     server = args.server if args.server else os.environ.get('NEXTCLOUD_SERVER')
 
-    if not user or not password or not server:
+    if not user or not password or not server or not args.arquivo:
         help = parser
         parser.print_help()
         sys.exit()
 
-    return user, password, server, args.url
+    return user, password, server, args.arquivo
 
 
 def main():
-    """Este script baixa um arquivo da URL fornecida pelo usuario
-    e envia ele para o nextcloud usando sua API no diretorio escolhido
+    """Este script envia arquivo fornecido pelo usuario para o nextcloud \
+usando sua API no diretorio escolhido.
     """
-    user, password, server, url = parse_arguments()
-
     logging.basicConfig(level=logging.DEBUG)
+    user, password, server, arquivo = parse_arguments()
 
-    if not url:
-        url = ask_url()
-
-    if (re.search(r'[^A-Za-z0-9_\-\\.]', url.split('/')[-1])):
-        filename = ask_nome_arquivo()
-    else:
-        filename = url.split('/')[-1]
+    arquivo = os.path.abspath(arquivo)
 
     global BASE_URL
     global AUTH
@@ -126,13 +88,13 @@ def main():
     BASE_URL = f"http://{server}{BASE_URL}{user}"
     AUTH = (user, password)
 
-    path = next.ask_path(BASE_URL, AUTH)
+    filename = os.path.basename(os.path.normpath(arquivo))
 
-    file_path = next.download_file(url, filename)
+    path = next.ask_path(BASE_URL, AUTH)
 
     enviar = True
     while enviar:
-        sucesso = next.upload_file(file_path, filename, BASE_URL + path, AUTH)
+        sucesso = next.upload_file(arquivo, filename, BASE_URL + path, AUTH)
 
         if sucesso:
             enviar = False
