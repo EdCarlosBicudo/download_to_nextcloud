@@ -8,6 +8,7 @@ import argparse
 import os
 import progressbar
 import re
+import textwrap
 from PyInquirer import prompt, Separator
 
 
@@ -116,26 +117,6 @@ def ask_path():
     return PATH
 
 
-def parse_arguments():
-    """Define os argumentos recebidos pelo usuario
-
-    Returns:
-        args: Args
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-u', '--user', help='Nextcloud user')
-    parser.add_argument('-p', '--password', help='Nextcloud password')
-    parser.add_argument('--url', help='URL of the download')
-
-    args = parser.parse_args()
-
-    if not args.user or not args.password:
-        parser.print_help()
-        sys.exit()
-
-    return args.user, args.password, args.url
-
-
 def download_file(url, filename):
     """Cria uma pasta temporaria e baixa o arquivo salvando-o nela
 
@@ -188,13 +169,22 @@ def download_file(url, filename):
 
         pbar.finish()
 
-    return os.path.join(os.getcwd(), filename)
+    return os.getcwd()
 
 
 def upload_file(file_path, file_name, upload_path):
+    """Sobe o arquivo para o Nextcloud, no caminho informado
+
+    Args:
+        file_path (String): Caminho do arquivo que será enviado
+        file_name (String): Nome do arquivo
+        upload_path ([type]): Local onde o arquivo será salvo
+    """
     final_path = BASE_URL + upload_path + file_name
 
-    response = requests.put(final_path, auth=AUTH, data=open(file_path, 'rb'))
+    response = requests.put(final_path,
+                            auth=AUTH,
+                            data=open(os.path.join(file_path, file_name), 'rb'))
 
     print(response.status_code)
 
@@ -202,6 +192,48 @@ def upload_file(file_path, file_name, upload_path):
         print('Arquivo enviado com sucesso')
     else:
         print('Erro ao enviar o arquivo')
+
+
+def parse_arguments():
+    """Define os argumentos recebidos pelo usuario
+
+    Returns:
+        args: Args
+    """
+    help = '''\
+         variáveis de ambiente:
+            você pode configurar as seguintes variáveis de ambiente para não \
+precisar supri-las na linha de comando:
+
+            NEXTCLOUD_USER      -usuário do Nextcloud
+            NEXTCLOUD_PASS      -senha do Nextcloud
+            NEXTCLOUD_SERVER    -endereço do servidor Nextcloud
+
+            (Argumentos fornecidos na linha de comando sempre terão \
+precedência em relação as variáveis de ambiente)
+        '''
+    parser = argparse.ArgumentParser(
+             prog='download_to_nextcloud.py',
+             formatter_class=argparse.RawDescriptionHelpFormatter,
+             epilog=textwrap.dedent(help))
+
+    parser.add_argument('-u', '--user', help='usuário do Nextcloud')
+    parser.add_argument('-p', '--password', help='senha do Nextcloud')
+    parser.add_argument('-s', '--server', help='endereço do servidor Nextcloud')
+    parser.add_argument('--url', help='URL of the download')
+
+    args = parser.parse_args()
+
+    user = args.user if args.user else os.environ.get('NEXTCLOUD_USER')
+    password = args.password if args.password else os.environ.get('NEXTCLOUD_PASS')
+    server = args.server if args.server else os.environ.get('NEXTCLOUD_SERVER')
+
+    if not user or not password or not server:
+        help = parser
+        parser.print_help()
+        sys.exit()
+
+    return args.user, args.password, args.url
 
 
 def main():
