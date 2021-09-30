@@ -172,3 +172,12 @@ def ask_path(list_url, auth):
             path = PATH + a_path['path']
         PATH = path if path else '/'
     return PATH
+
+
+def ler_lista(arquivo):
+    lista_arquivos = []
+    with open(arquivo, 'r') as f:
+        for line in f:
+            lista_arquivos.append(line.rstrip())
+
+    return lista_arquivos

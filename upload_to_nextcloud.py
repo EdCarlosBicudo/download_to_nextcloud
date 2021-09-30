@@ -56,6 +56,7 @@ precedência em relação as variáveis de ambiente)
     parser.add_argument('-p', '--password', help='senha do Nextcloud')
     parser.add_argument('-s', '--server', help='endereço do servidor Nextcloud')
     parser.add_argument('-a', '--arquivo', help='arquivo a ser enviado')
+    parser.add_argument('-l', '--lista', help='lista de arquivos a serem enviados')
 
     args = parser.parse_args()
 
@@ -63,46 +64,62 @@ precedência em relação as variáveis de ambiente)
     password = args.password if args.password else os.environ.get('NEXTCLOUD_PASS')
     server = args.server if args.server else os.environ.get('NEXTCLOUD_SERVER')
 
-    if not user or not password or not server or not args.arquivo:
+    if args.arquivo and args.lista:
         help = parser
         parser.print_help()
         sys.exit()
 
-    return user, password, server, args.arquivo
+    if not user or not password or not server or not (args.arquivo or args.lista):
+        help = parser
+        parser.print_help()
+        sys.exit()
+
+    return user, password, server, args.arquivo, args.lista
 
 
 def main():
     """Este script envia arquivo fornecido pelo usuario para o nextcloud \
 usando sua API no diretorio escolhido.
     """
-    user, password, server, arquivo = parse_arguments()
+    user, password, server, arquivo, lista = parse_arguments()
 
-    arquivo = os.path.abspath(arquivo)
+    lista_arquivos = {}
 
-    global BASE_URL
+    if arquivo:
+        #filename = os.path.basename(os.path.normpath(arquivo))
+        #os.path.abspath(arquivo)
+        lista_arquivos[os.path.basename(os.path.normpath(arquivo))] = os.path.abspath(arquivo)
+
+    if lista:
+        for arquivo in next.ler_lista(lista):
+            lista_arquivos[os.path.basename(os.path.normpath(arquivo))] = os.path.abspath(arquivo)
+
     global AUTH
 
-    BASE_URL = f"http://{server}{BASE_URL}{user}"
+    url_base = f"http://{server}{BASE_URL}{user}"
     AUTH = (user, password)
 
-    filename = os.path.basename(os.path.normpath(arquivo))
+    path = next.ask_path(url_base, AUTH)
 
-    path = next.ask_path(BASE_URL, AUTH)
+    server_path = f"http://{server}" + path
 
-    enviar = True
-    sucesso = None
-    while enviar:
-        sucesso = next.upload_file(arquivo, filename, BASE_URL + path, AUTH)
+    count = 1
+    for filename, arquivo in lista_arquivos.items():
+        enviar = True
+        sucesso = None
+        while enviar:
+            sucesso = next.upload_file(arquivo, filename, server_path, AUTH)
+
+            if sucesso:
+                enviar = False
+            if not sucesso:
+                enviar = ask_enviar_novamente()
 
         if sucesso:
-            enviar = False
-        if not sucesso:
-            enviar = ask_enviar_novamente()
-
-    if sucesso:
-        print("Arquivo enviado com sucesso")
-    else:
-        print("Arquivo não enviado")
+            print(f"Arquivo enviado com sucesso [{count}/{len(lista_arquivos)}]")
+        else:
+            print(f"Arquivo não enviado [{count}/{len(lista_arquivos)}]")
+        count += 1
 
 
 if __name__ == '__main__':
